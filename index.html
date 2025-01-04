@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" width="width=device-width, initial-scale=1.0">
+  <title>随机点名</title>
+  <style>
+    body {
+      font-family: Helvetica;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background-color: white;
+    }
+
+    button {
+      padding: 15px 30px;
+      font-size: 20px;
+      cursor: pointer;
+      margin: 10px;
+      border: none;
+      border-radius: 15px;
+      background: linear-gradient(to bottom right, #6699ff, #33ccff);
+      color: white;
+    }
+
+    label {
+      font-size: 24px;
+    }
+
+    #selectedStudent {
+      font-size: 200px;
+      font-weight: bold;
+      color: black;
+    }
+
+.colorSelectContainer {
+      display: flex;
+      margin-top: 10px;
+    }
+
+.colorSelect {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      margin-right: 5px;
+    }
+
+    input[type="file"] {
+      width: 0.1px;
+      height: 0.1px;
+      opacity: 0;
+      overflow: hidden;
+      position: absolute;
+      z-index: -1;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="selectedStudent"></div>
+  <button id="callButton">点名</button>
+  <label id="printStudent">被点名的同学是：</label>
+  <div class="colorSelectContainer">
+    <div class="colorSelect" style="background-color: red;"></div>
+    <div class="colorSelect" style="background-color: blue;"></div>
+    <div class="colorSelect" style="background-color: purple;"></div>
+    <div class="colorSelect" style="background-color: black;"></div>
+  </div>
+  <input type="file" id="fileInput" style="display: none;">
+  <button id="uploadButton">上传名单</button>
+  <button id="clearButton">清除名单</button>
+
+  <script>
+    // 尝试从本地存储中获取已点过的学生列表、当前索引和选中学生的颜色状态，如果没有则初始化为默认值
+    let alreadyCalled = JSON.parse(localStorage.getItem('alreadyCalled')) || [];
+    let currentIndex = parseInt(localStorage.getItem('currentIndex')) || -1;
+    let selectedStudentColor = localStorage.getItem('selectedStudentColor') || 'black';
+    let buttonEnabled = true;
+    let students = [];
+    let savedStudents = JSON.parse(localStorage.getItem('savedStudents')) || [];
+
+    if (savedStudents.length > 0) {
+      students = savedStudents;
+    }
+
+    let rolling = false;
+
+    function startRolling() {
+      rolling = true;
+      buttonEnabled = false;
+      rollNames();
+      setTimeout(stopRolling, 1000);
+    }
+
+    function stopRolling() {
+      rolling = false;
+      callStudent();
+      buttonEnabled = true;
+    }
+
+    function rollNames() {
+      if (rolling) {
+        const randomName = students[Math.floor(Math.random() * students.length)];
+        document.getElementById('printStudent').textContent = randomName;
+        setTimeout(rollNames, 50);
+      }
+    }
+
+    function callStudent() {
+      if (alreadyCalled.length < students.length) {
+        let candidate;
+        do {
+          candidate = students[Math.floor(Math.random() * students.length)];
+        } while (alreadyCalled.includes(candidate));
+        document.getElementById('printStudent').textContent = `被点名的同学是：${candidate}`;
+        document.getElementById('selectedStudent').textContent = candidate;
+        document.getElementById('selectedStudent').style.color = selectedStudentColor;
+        alreadyCalled.push(candidate);
+        currentIndex++;
+        // 将点名进度信息和选中学生颜色状态存储到本地存储中
+        localStorage.setItem('alreadyCalled', JSON.stringify(alreadyCalled));
+        localStorage.setItem('currentIndex', currentIndex);
+        localStorage.setItem('selectedStudentColor', selectedStudentColor);
+      } else {
+        document.getElementById('printStudent').textContent = "所有人已抽完，开始新一轮。";
+        alreadyCalled = [];
+        currentIndex = -1;
+        // 清空本地存储中的点名进度信息并重置进度，同时重置颜色状态
+        localStorage.setItem('alreadyCalled', JSON.stringify(alreadyCalled));
+        localStorage.setItem('currentIndex', currentIndex);
+        localStorage.setItem('selectedStudentColor', 'black');
+      }
+    }
+
+    document.getElementById('callButton').addEventListener('click', function () {
+      if (!buttonEnabled) return;
+      if (students.length === 0) {
+        alert('没有导入名单，请先导入名单。');
+        return;
+      }
+      startRolling();
+    });
+
+    // 为颜色选择器添加点击事件
+    const colorSelects = document.querySelectorAll('.colorSelect');
+    colorSelects.forEach(colorSelect => {
+      colorSelect.addEventListener('click', function () {
+        const newColor = this.style.backgroundColor;
+        const selectedStudent = document.getElementById('selectedStudent');
+        selectedStudent.style.color = newColor;
+        selectedStudentColor = newColor;
+        localStorage.setItem('selectedStudentColor', newColor);
+      });
+    });
+
+    // 在页面加载时恢复选中学生的颜色状态
+    document.addEventListener('DOMContentLoaded', function () {
+      const selectedStudent = document.getElementById('selectedStudent');
+      selectedStudent.style.color = selectedStudentColor;
+    });
+
+    document.getElementById('uploadButton').addEventListener('click', function () {
+      document.getElementById('fileInput').click();
+    });
+
+    document.getElementById('fileInput').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const content = e.target.result;
+          students = content.split('\n').filter(Boolean);
+          localStorage.setItem('savedStudents', JSON.stringify(students));
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    document.getElementById('clearButton').addEventListener('click', function () {
+      students = [];
+      localStorage.removeItem('savedStudents');
+    });
+  </script>
+</body>
+
+</html>
